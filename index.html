@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LocFit — localization QA scored with MQM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --canvas:#F3F2EF; --surface:#FFFFFF; --ink:#17171C; --muted:#6F6E78; --faint:#9B9AA3;
+    --line:#E6E4DF; --line-strong:#D8D5CE;
+    --brand:#4338CA; --brand-soft:#ECEBFB;
+    --good:#15803D; --good-bg:#E4F6E9;
+    --ok:#B45309;   --ok-bg:#FCF1DC;
+    --bad:#B91C1C;  --bad-bg:#FBE6E6;
+    --radius:14px; --shadow:0 1px 2px rgba(20,20,30,.04), 0 8px 24px rgba(20,20,30,.05);
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--canvas);color:var(--ink);font-family:"Inter",system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:980px;margin:0 auto;padding:28px 22px 80px}
+
+  header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:24px}
+  .brandmark{display:flex;align-items:center;gap:11px}
+  .glyph{width:34px;height:34px;border-radius:9px;background:var(--ink);position:relative;flex:none}
+  .glyph::before{content:"";position:absolute;inset:9px;border:2px solid var(--canvas);border-radius:50%}
+  .glyph::after{content:"";position:absolute;left:50%;top:50%;width:2px;height:9px;background:var(--canvas);transform-origin:bottom;transform:translate(-50%,-100%) rotate(33deg)}
+  .brandname{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:21px;letter-spacing:-.02em;line-height:1}
+  .brandname span{color:var(--brand)}
+  .brandsub{font-size:12.5px;color:var(--muted);margin-top:3px}
+  .ctx{font-size:12px;color:var(--faint);text-align:right;max-width:250px}
+
+  .thesis{font-family:"Bricolage Grotesque",sans-serif;font-weight:600;font-size:24px;line-height:1.22;letter-spacing:-.02em;max-width:680px;margin:0 0 22px}
+  .thesis b{color:var(--brand);font-weight:600}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .pad{padding:20px}
+
+  .seg{display:inline-flex;background:var(--canvas);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+  .seg button{appearance:none;border:0;background:transparent;font:inherit;font-size:13px;font-weight:500;color:var(--muted);padding:6px 13px;border-radius:7px;cursor:pointer;transition:.15s}
+  .seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+  label.fld{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:0 0 6px;letter-spacing:.01em}
+  textarea,input[type=text]{width:100%;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;padding:10px 12px;resize:vertical}
+  textarea{min-height:170px;font-family:var(--mono);font-size:12.5px;line-height:1.5}
+  textarea:focus,input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+
+  .drop{border:1.5px dashed var(--line-strong);border-radius:11px;padding:26px 16px;text-align:center;cursor:pointer;transition:.15s;background:var(--canvas)}
+  .drop:hover,.drop.over{border-color:var(--brand);background:var(--brand-soft)}
+  .drop p{margin:0;font-size:13.5px;color:var(--muted)}
+  .drop b{color:var(--ink)}
+  .drop small{display:block;margin-top:6px;font-size:11.5px;color:var(--faint)}
+  .filechip{margin-top:10px;font-size:13px;color:var(--ink);display:none;align-items:center;gap:8px}
+  .filechip .x{cursor:pointer;color:var(--faint);font-weight:700}
+
+  .langrow{margin-top:16px;max-width:360px}
+
+  details.keyrow{margin-top:14px;font-size:12.5px}
+  details.keyrow summary{cursor:pointer;color:var(--muted);list-style:none}
+  details.keyrow summary::-webkit-details-marker{display:none}
+  details.keyrow summary::before{content:"+ ";color:var(--faint)}
+  details.keyrow[open] summary::before{content:"– "}
+  details.keyrow input{font-size:13px;margin-top:9px}
+  details.keyrow p{margin:7px 0 0;color:var(--faint);font-size:11.5px}
+
+  .runrow{display:flex;align-items:center;gap:14px;margin-top:18px;flex-wrap:wrap}
+  .run{appearance:none;border:0;background:var(--brand);color:#fff;font:inherit;font-weight:600;font-size:14px;padding:11px 22px;border-radius:10px;cursor:pointer;transition:.15s}
+  .run:hover{background:#392fb0}
+  .run:disabled{opacity:.55;cursor:default}
+  .runhint{font-size:12px;color:var(--faint)}
+
+  #loading{display:none;margin-top:22px}
+  .steps{display:flex;flex-direction:column;gap:9px}
+  .step{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--faint);transition:.25s}
+  .step.active{color:var(--ink)} .step.done{color:var(--muted)}
+  .dot{width:15px;height:15px;border-radius:50%;border:2px solid var(--line-strong);flex:none;position:relative}
+  .step.active .dot{border-color:var(--brand);animation:pulse 1s infinite}
+  .step.done .dot{border-color:var(--good);background:var(--good)}
+  .step.done .dot::after{content:"";position:absolute;left:4px;top:1px;width:3px;height:7px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 var(--brand-soft)}50%{box-shadow:0 0 0 5px var(--brand-soft)}}
+
+  #error{display:none;margin-top:20px;border-color:var(--bad);background:var(--bad-bg)}
+  #error .pad{color:#7f1d1d}
+  #error strong{display:block;font-family:"Bricolage Grotesque",sans-serif;font-size:15px;margin-bottom:4px}
+
+  #results{display:none;margin-top:26px;animation:rise .4s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  /* verdict */
+  .verdict-row{display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+  .verdict-txt{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:23px;letter-spacing:-.02em}
+  .cnt{font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:999px}
+  .cnt-fix{background:var(--bad-bg);color:var(--bad)}
+  .cnt-pol{background:var(--brand-soft);color:var(--brand)}
+  .summary{margin:13px 0 0;font-size:14.5px;color:var(--ink);max-width:660px}
+
+  /* scoreboard */
+  .scoreboard{margin-top:22px;padding-top:20px;border-top:1px solid var(--line);display:flex;align-items:center;gap:26px;flex-wrap:wrap}
+  .qs{display:flex;align-items:baseline;gap:8px}
+  .qs b{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:46px;line-height:.9;letter-spacing:-.03em}
+  .qs span{font-size:13px;color:var(--faint)}
+  .passbadge{font-weight:700;font-size:13px;padding:7px 15px;border-radius:999px}
+  .pass{background:var(--good-bg);color:var(--good)} .fail{background:var(--bad-bg);color:var(--bad)}
+  .stat{font-size:12px;color:var(--muted);line-height:1.3}
+  .stat b{display:block;font-size:17px;color:var(--ink);font-family:"Bricolage Grotesque",sans-serif;font-weight:600;letter-spacing:-.01em}
+  .caveat{margin:14px 0 0;font-size:11.5px;color:var(--faint);max-width:660px}
+
+  .info{position:relative;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1px solid var(--line-strong);color:var(--faint);font-size:10px;font-weight:700;cursor:help;margin-left:2px}
+  .info .tip{position:absolute;left:50%;bottom:150%;transform:translateX(-50%);width:min(260px,72vw);background:var(--ink);color:#fff;font-size:11.5px;font-weight:400;line-height:1.5;padding:10px 12px;border-radius:9px;opacity:0;visibility:hidden;transition:.15s;z-index:5}
+  .info:hover .tip,.info:focus .tip{opacity:1;visibility:visible}
+
+  .scan-note{font-size:12.5px;color:var(--muted);padding:5px 2px}
+
+  .nested{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:12px}
+  .nested-h{font-size:11px;font-weight:600;color:var(--faint);letter-spacing:.02em}
+  .subissue .itop{margin-bottom:6px}
+  .nested .prob,.nested .fix{font-size:13px}
+
+  /* scorecard table */
+  .sheet-h{font-size:12px;font-weight:600;color:var(--muted);margin:24px 0 8px;letter-spacing:.02em}
+  .sheet{width:100%;border-collapse:collapse;font-size:13px}
+  .sheet th{text-align:left;font-size:11px;font-weight:600;color:var(--muted);padding:7px 10px;border-bottom:1px solid var(--line-strong)}
+  .sheet th.r,.sheet td.r{text-align:right}
+  .sheet td{padding:8px 10px;border-bottom:1px solid var(--line)}
+  .sheet tr.zero td{color:var(--faint)}
+  .sheet td.num{font-variant-numeric:tabular-nums;font-family:var(--mono)}
+  .sheet td.pen b{font-weight:600}
+  .sheet tfoot td{padding-top:10px;font-weight:600;border-bottom:0}
+
+  /* term scan */
+  .scan-h{font-size:12px;font-weight:600;color:var(--muted);margin-bottom:12px;letter-spacing:.02em}
+  .scan{display:flex;flex-direction:column;gap:8px}
+  .scanrow{display:flex;align-items:center;gap:9px;font-size:13px;padding:8px 11px;border:1px solid var(--line);border-radius:9px;flex-wrap:wrap}
+  .sterm{font-family:var(--mono);font-weight:600;font-size:12.5px}
+  .sarr{color:var(--faint)} .slit{color:var(--muted)}
+  .smark{margin-left:auto;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:6px}
+  .sok{background:var(--good-bg);color:var(--good)} .sno{background:var(--bad-bg);color:var(--bad)}
+
+  /* issue groups */
+  .group-h{display:flex;align-items:center;gap:10px;font-family:"Bricolage Grotesque",sans-serif;font-size:15px;font-weight:600;margin:24px 0 12px}
+  .group-h .gc{font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:999px}
+  .issue{border:1px solid var(--line);border-radius:12px;padding:14px 15px;margin-bottom:10px}
+  .issue.crit{border-color:#f0bcbc}
+  .itop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+  .sev{font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:3px 8px;border-radius:6px}
+  .sev-critical{background:var(--bad-bg);color:var(--bad)}
+  .sev-major{background:var(--ok-bg);color:var(--ok)}
+  .sev-minor{background:var(--brand-soft);color:var(--brand)}
+  .dimtag{font-size:11.5px;color:var(--muted);font-weight:500}
+  .conf{font-size:10.5px;color:var(--faint);margin-left:auto}
+  .orig{font-family:var(--mono);font-size:12.5px;background:var(--canvas);border:1px solid var(--line);border-radius:7px;padding:7px 10px;margin:0 0 9px;color:var(--ink);overflow-x:auto;white-space:pre-wrap}
+  .prob{font-size:13.5px;margin:0 0 7px;color:var(--ink)}
+  .fix{font-size:13.5px;margin:0;color:var(--good);display:flex;gap:7px}
+  .fix b{color:var(--good);font-weight:600;flex:none}
+  .empty{font-size:13.5px;color:var(--muted);padding:12px 14px;border:1px dashed var(--line-strong);border-radius:11px}
+
+  footer{margin-top:40px;text-align:center;font-size:12px;color:var(--faint);line-height:1.6}
+  footer a{color:var(--muted)}
+
+  @media (max-width:720px){
+    .ctx{text-align:left;max-width:none}
+    .qs b{font-size:38px}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brandmark">
+      <div class="glyph" aria-hidden="true"></div>
+      <div>
+        <div class="brandname">Loc<span>Fit</span></div>
+        <div class="brandsub">Localization QA scored with MQM</div>
+      </div>
+    </div>
+    <div class="ctx">Paste a localized page or upload a saved .html file. Get an MQM scorecard, not a perfectionist's wishlist.</div>
+  </header>
+
+  <h1 class="thesis">Most localization isn't meant to be perfect. It's meant to be <b>good enough for the job</b>. LocFit grades web content with the MQM framework and separates what's broken from what's just polish.</h1>
+
+  <div class="card pad">
+    <div class="seg" role="group" aria-label="Input mode">
+      <button id="mode-paste" aria-pressed="true">Paste content</button>
+      <button id="mode-file" aria-pressed="false">Upload .html</button>
+    </div>
+
+    <div id="paste-block" style="margin-top:14px">
+      <label class="fld" for="content">Localized page content or HTML</label>
+      <textarea id="content" spellcheck="false"></textarea>
+    </div>
+
+    <div id="file-block" style="margin-top:14px;display:none">
+      <label class="fld">Saved web page</label>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose an HTML file">
+        <p><b>Drop a saved .html file here</b> or click to choose</p>
+        <small>In any browser: open the page, save it (Ctrl/Cmd+S → "Webpage, HTML only"), then upload. Scripts and styles are stripped automatically.</small>
+      </div>
+      <input type="file" id="file" accept=".html,.htm,.txt" style="display:none">
+      <div class="filechip" id="filechip"><span id="filename"></span><span class="x" id="filex">✕</span></div>
+    </div>
+
+    <div class="langrow">
+      <label class="fld" for="lang">Target language / market</label>
+      <input type="text" id="lang" value="Lithuanian (lt-LT)">
+    </div>
+
+    <details class="keyrow">
+      <summary>Running this outside Claude? Add an API key</summary>
+      <input type="text" id="apikey" placeholder="sk-ant-... (kept in memory only)">
+      <p>Leave blank when running inside Claude. Paste your own Anthropic API key to run LocFit on any web host.</p>
+    </details>
+
+    <div class="runrow">
+      <button class="run" id="run">Run MQM review</button>
+      <span class="runhint">Annotates errors, then computes the MQM score in your browser</span>
+    </div>
+
+    <div id="loading">
+      <div class="steps">
+        <div class="step" id="s1"><span class="dot"></span>Scanning the key terms for meaning</div>
+        <div class="step" id="s2"><span class="dot"></span>Classifying errors against MQM dimensions</div>
+        <div class="step" id="s3"><span class="dot"></span>Calculating the MQM score</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="error"><div class="pad"><strong id="error-h">Something went wrong</strong><span id="error-b"></span></div></div>
+
+  <div id="results">
+    <div class="card pad">
+      <div class="verdict-row">
+        <span class="verdict-txt" id="r-verdict">—</span>
+        <span class="cnt cnt-fix" id="r-cnt-fix" style="display:none"></span>
+        <span class="cnt cnt-pol" id="r-cnt-pol" style="display:none"></span>
+      </div>
+      <p class="summary" id="r-summary"></p>
+
+      <div class="scoreboard">
+        <div class="qs"><b id="r-score">—</b><span>/ 100 MQM quality score</span><span class="info" tabindex="0" role="img" aria-label="How the MQM score works">i<span class="tip">Score = 100 − the per-word penalty. MQM severity weights: minor ×1, major ×5, critical ×25. One critical error is an automatic fail. On short samples the raw score swings hard, so penalty per 1000 words is the comparable figure.</span></span></div>
+        <span class="passbadge" id="r-pass">—</span>
+        <div class="stat"><b id="r-apt">—</b>absolute penalty</div>
+        <div class="stat"><b id="r-npt">—</b>penalty / 1000 words</div>
+        <div class="stat"><b id="r-ewc">—</b>words evaluated</div>
+      </div>
+
+      <div class="sheet-h">MQM-Core scorecard — penalty by dimension</div>
+      <table class="sheet">
+        <thead><tr><th>Error dimension</th><th class="r">Errors</th><th class="r">Penalty points</th></tr></thead>
+        <tbody id="sheet-body"></tbody>
+        <tfoot><tr><td>Total (APT)</td><td class="r num" id="sheet-count">0</td><td class="r num" id="sheet-pen">0</td></tr></tfoot>
+      </table>
+    </div>
+
+    <div class="card pad" id="scan-card" style="margin-top:14px;display:none">
+      <div class="scan-h">Term scan — literal meaning check</div>
+      <div class="scan" id="scan-list"></div>
+    </div>
+
+    <div class="card pad" style="margin-top:14px">
+      <div class="group-h">Must fix <span class="gc cnt-fix" id="mf-c">0</span></div>
+      <div id="mustfix"></div>
+      <div class="group-h" style="margin-top:6px">Could polish <span class="gc cnt-pol" id="cp-c">0</span></div>
+      <div id="polish"></div>
+    </div>
+  </div>
+
+  <footer>
+    Built for the GenAI in Localization Hackathon · reviews powered by Claude · first-pass triage, confirm with a human reviewer<br>
+    Scoring based on MQM 2.0 (<a href="https://themqm.org">themqm.org</a>, CC BY 4.0) · <a href="https://egle.works">egle.works</a>
+  </footer>
+</div>
+
+<script>
+const SAMPLE = `<nav>Rekomenduojama · Moterims · Namams · Vaikams · Vyrams</nav>
+<button class="search">ieškoti</button>
+<button class="stylist">Stilistas</button>
+<span class="badge">BESTSELLER</span>
+<h1 class="product-title">Medvilninė blusa su asimetrišku apdailos kraštu ir dekoratyvine nėriniu</h1>
+<div class="rating">4,6/5 (41)</div>
+<div class="price">7,99 EUR</div>
+<div class="loyalty">+8 tašk. Sinsay Club</div>
+<div class="color">Spalva: kreminė</div>
+<button class="size-guide">Dydžių gidas</button>
+<div class="fit-note">59% klientų įvertino prekę kaip atitinkantį dydį</div>
+<button class="add-to-cart">įdėti į pirkinių krepšelį – 7,99 EUR</button>
+<div class="origin">Esame iš Europos Sąjungos</div>
+<button class="store">Galimybė įsigyti parduotuvėje</button>
+<section class="delivery">Pristatymo laikas ir kaina.
+Parduotuvės Visada nemokamas. Dauguma siuntų pristatomos per 6 darbo dienas. Išsami informacija.
+Kurjeris/atsiėmimo punktas. Dauguma siuntų pristatomos per 5 darbo dienas. Išsami informacija.</section>
+<button class="returns">30 dienų grąžinimas</button>`;
+
+const $ = id => document.getElementById(id);
+$('content').value = SAMPLE;
+
+const MQM_DIMS = [
+  ['terminology','Terminology'],
+  ['accuracy','Accuracy'],
+  ['linguistic','Linguistic conventions'],
+  ['style','Style'],
+  ['locale','Locale conventions'],
+  ['audience','Audience appropriateness'],
+  ['design','Design & markup']
+];
+const SPM = {minor:1, major:5, critical:25};
+
+let mode='paste';
+let uploadedText='';
+
+$('mode-paste').onclick=()=>setMode('paste');
+$('mode-file').onclick=()=>setMode('file');
+function setMode(m){
+  mode=m;
+  $('mode-paste').setAttribute('aria-pressed', m==='paste');
+  $('mode-file').setAttribute('aria-pressed', m==='file');
+  $('paste-block').style.display = m==='paste'?'block':'none';
+  $('file-block').style.display = m==='file'?'block':'none';
+}
+
+// file upload
+const drop=$('drop'), fileInput=$('file');
+drop.onclick=()=>fileInput.click();
+drop.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();fileInput.click();} };
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>{ if(e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); });
+fileInput.onchange=()=>{ if(fileInput.files[0]) readFile(fileInput.files[0]); };
+$('filex').onclick=()=>{ uploadedText=''; $('filechip').style.display='none'; fileInput.value=''; };
+function readFile(f){
+  const r=new FileReader();
+  r.onload=()=>{ uploadedText=r.result||''; $('filename').textContent=f.name+' ('+Math.round(f.size/1024)+' KB)'; $('filechip').style.display='flex'; };
+  r.readAsText(f);
+}
+
+function cleanForModel(s){
+  return s.replace(/<script[\s\S]*?<\/script>/gi,' ')
+          .replace(/<style[\s\S]*?<\/style>/gi,' ')
+          .replace(/<!--[\s\S]*?-->/g,' ')
+          .replace(/[ \t]+/g,' ')
+          .slice(0,14000);
+}
+function wordCount(s){
+  const t=s.replace(/<[^>]+>/g,' ').replace(/&[a-z]+;/gi,' ');
+  const m=t.trim().match(/\S+/g);
+  return m?m.length:0;
+}
+function escapeHtml(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+
+const SYSTEM = `You are a senior localization QA reviewer. You annotate localized web content using MQM 2.0 (Multidimensional Quality Metrics), the localization industry standard. You do NOT output a score — you annotate errors, and software computes the score from your annotations. Judge for FITNESS FOR PURPOSE, never against an ideal of perfection.
+
+STEP 1 — TERM SCAN (do this FIRST). Look at the key customer-facing terms: product names, headings, CTAs/buttons, category and navigation labels. For each meaningful term, back-translate it: state what the word LITERALLY means in the target language and whether that meaning fits the item or context. This is how you catch MISTRANSLATIONS where a word is valid in the target language but denotes the WRONG THING (e.g. a garment whose name actually means an insect or animal). A fluent, correctly spelled sentence can still contain a word that means the wrong thing. Never skip this.
+
+STEP 2 — ANNOTATE each real error under ONE MQM-Core dimension:
+- accuracy: meaning does not match — mistranslation (including a word that is valid in the target language but means the wrong thing), untranslated source word, omission, addition, MT hallucination.
+- terminology: a term that is not the correct/normative equivalent or is inconsistent with domain usage.
+- linguistic: linguistic well-formedness — grammar, agreement, case, spelling, punctuation. Meaning is right, form is off. Sweep EVERY short UI label, button and heading for case and agreement errors; do not stop after the first one or two.
+- style: grammatically fine but wrong register, tone, or off a style guide; flat literal MT tone.
+- locale: violates locale formatting/content rules — wrong number, date, currency, measurement or address format.
+- audience: content invalid or inappropriate for the target locale or audience.
+- design: presentation/markup — visible truncation or overflow, leaked placeholders or variables (e.g. {0}, %s, {{name}}), broken markup.
+
+ALWAYS CHECK FOR: visible text truncation/overflow, leaked placeholders or untranslated variables, and flat/literal machine-translated tone. If the content carries legal or commercial weight (prices, guarantees, returns, health or safety claims), raise scrutiny: a misleading or wrong claim is an accuracy error and usually critical.
+
+DO NOT ASSERT CLAIMS. Never infer or state a legal, origin, or compliance fact the source does not contain. If a phrase reads as an origin/compliance/legal claim and is ambiguous (for example "from the EU" could mean the seller is EU-based, the goods ship from the EU, or the product is made in the EU — these are different claims), flag it but do NOT propose a rewrite that asserts one specific claim. Set "suggestion" to name the ambiguity and offer options for a human to choose between, e.g. "Ambiguous claim — confirm intended meaning. If origin: X. If seller location: Y." Treat such cases as needing human verification rather than asserting a fix.
+
+SEVERITY (MQM definitions, apply literally):
+- critical: renders content unfit for purpose, or risks legal/financial/reputational/safety harm, or breaks meaning badly. Most false friends and real mistranslations are critical or major.
+- major: seriously affects understandability, reliability or usability, or appears in a highly visible/important part (a significant loss or change of meaning).
+- minor: noticeable but does NOT seriously impede understanding. Most isolated grammar/agreement/case/declension slips and light awkwardness are MINOR. A case or agreement error that does not change meaning stays MINOR even in a product title, heading or button; visibility alone does not raise it to major.
+
+PRECISION vs RECALL (this is what makes the tool trusted):
+- Be THOROUGH on accuracy and critical errors — never miss a word that means the wrong thing.
+- Be CONSERVATIVE on linguistic, terminology and style. If you are not confident a term is genuinely wrong in THIS market, do NOT flag it. Navigation labels, button microcopy and category names conventional in the market are CORRECT even when another grammatical form exists. Prefer a missed nitpick over a false alarm.
+Set each issue's "confidence": high, medium or low.
+
+Return ONLY valid JSON. No markdown, no fences, no commentary. Exact shape:
+{
+ "summary": "one plain sentence on overall fitness",
+ "term_scan": [ {"term":"exact term","literal_meaning":"what it literally means in the target language","fits":true} ],
+ "issues": [
+   {"dimension":"accuracy|terminology|linguistic|style|locale|audience|design","severity":"critical|major|minor","confidence":"high|medium|low","original":"exact text from the content","problem":"short","suggestion":"short"}
+ ]
+}
+List critical and major issues FIRST. Up to 8 issues, up to 6 scanned terms. Keep every string under ~25 words. "original" and "term" must be copied exactly from the content.`;
+
+function parseJSON(text){
+  let t=text.trim().replace(/^```(json)?/i,'').replace(/```$/,'').trim();
+  const a=t.indexOf('{'), b=t.lastIndexOf('}');
+  if(a>=0&&b>a) t=t.slice(a,b+1);
+  return JSON.parse(t);
+}
+
+async function callClaude(content){
+  const key=$('apikey').value.trim();
+  const headers={'content-type':'application/json'};
+  if(key){ headers['x-api-key']=key; headers['anthropic-version']='2023-06-01'; headers['anthropic-dangerous-direct-browser-access']='true'; }
+  const userMsg=`TARGET LANGUAGE / MARKET: ${$('lang').value.trim()||'unspecified'}
+
+Review the localized web content below for this target language. Run the term scan, then annotate the most important MQM errors.
+
+--- CONTENT START ---
+${content}
+--- CONTENT END ---`;
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',headers,
+    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:3000,system:SYSTEM,messages:[{role:'user',content:userMsg}]})
+  });
+  if(!res.ok){
+    const txt=await res.text().catch(()=> '');
+    if(res.status===401||res.status===403) throw {h:'API key needed',b:'Open "Running this outside Claude?" above and paste a valid Anthropic API key.'};
+    throw {h:'The model call failed ('+res.status+')',b:(txt||'Try again in a moment.').slice(0,180)};
+  }
+  const data=await res.json();
+  const text=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+  if(!text) throw {h:'Empty response',b:'The model returned nothing. Try again.'};
+  try{ return parseJSON(text); } catch(e){ throw {h:'Could not read the review',b:'The model did not return clean data. Try running it again.'}; }
+}
+
+function scoreReport(issues, ewc){
+  let apt=0;
+  const perDim={}; MQM_DIMS.forEach(([k])=>perDim[k]={count:0,penalty:0});
+  issues.forEach(i=>{
+    const m=SPM[i.severity]||0; apt+=m;
+    if(perDim[i.dimension]){perDim[i.dimension].count++; perDim[i.dimension].penalty+=m;}
+  });
+  const eff=Math.max(ewc,1);
+  const pwpt=apt/eff;
+  const npt=Math.round(pwpt*1000);
+  const rqs=Math.max(0,Math.min(100,Math.round(100*(1-pwpt))));
+  return {apt,npt,rqs,perDim};
+}
+
+let timers=[];
+function startLoading(){
+  $('error').style.display='none'; $('results').style.display='none'; $('loading').style.display='block';
+  ['s1','s2','s3'].forEach(s=>$(s).className='step'); $('s1').className='step active';
+  timers.push(setTimeout(()=>{$('s1').className='step done';$('s2').className='step active';},900));
+  timers.push(setTimeout(()=>{$('s2').className='step done';$('s3').className='step active';},2300));
+}
+function stopLoading(){ timers.forEach(clearTimeout); timers=[]; $('loading').style.display='none'; }
+
+function render(d, ewc){
+  const issues=(d.issues||[]).filter(i=>i&&i.severity&&SPM[i.severity]!==undefined);
+  const sc=scoreReport(issues, ewc);
+
+  const crit=issues.filter(i=>i.severity==='critical');
+  const SEV_RANK={critical:3,major:2,minor:1};
+  const gmap=new Map();
+  issues.forEach(i=>{
+    const key=(i.original||'').trim() || ('__'+gmap.size);
+    if(!gmap.has(key)) gmap.set(key,[]);
+    gmap.get(key).push(i);
+  });
+  let groups=[];
+  gmap.forEach(arr=>{
+    arr.sort((a,b)=>(SEV_RANK[b.severity]||0)-(SEV_RANK[a.severity]||0));
+    groups.push({primary:arr[0], rest:arr.slice(1)});
+  });
+  groups.sort((a,b)=>(SEV_RANK[b.primary.severity]||0)-(SEV_RANK[a.primary.severity]||0));
+  const mustGroups=groups.filter(g=>g.primary.severity==='critical'||g.primary.severity==='major');
+  const polishGroups=groups.filter(g=>g.primary.severity==='minor');
+  const mustFix=mustGroups.length;
+  const polish=polishGroups.length;
+
+  // verdict
+  const vt=$('r-verdict');
+  if(crit.length){ vt.textContent='Fails MQM review — blocking error'; vt.style.color='var(--bad)'; }
+  else if(mustFix){ vt.textContent='Passes, but fixes required'; vt.style.color='var(--ok)'; }
+  else if(polish){ vt.textContent='Passes — optional polish only'; vt.style.color='var(--good)'; }
+  else { vt.textContent='Clean pass'; vt.style.color='var(--good)'; }
+
+  const cf=$('r-cnt-fix'), cp=$('r-cnt-pol');
+  if(mustFix){ cf.style.display='inline-block'; cf.textContent=mustFix+' must-fix'; } else cf.style.display='none';
+  if(polish){ cp.style.display='inline-block'; cp.textContent=polish+' to polish'; } else cp.style.display='none';
+
+  $('r-summary').textContent=d.summary||'';
+
+  // scoreboard
+  $('r-score').textContent=sc.rqs;
+  $('r-score').style.color = sc.rqs>=75?'var(--good)':sc.rqs>=50?'var(--ok)':'var(--bad)';
+  const pb=$('r-pass');
+  if(crit.length){ pb.textContent='FAIL'; pb.className='passbadge fail'; }
+  else { pb.textContent='PASS'; pb.className='passbadge pass'; }
+  $('r-apt').textContent=sc.apt;
+  $('r-npt').textContent=sc.npt;
+  $('r-ewc').textContent=ewc;
+
+  // scorecard table
+  const body=$('sheet-body'); body.innerHTML='';
+  let shown=0;
+  MQM_DIMS.forEach(([k,label])=>{
+    const c=sc.perDim[k];
+    if(!c.count) return;
+    shown++;
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td>'+label+'</td><td class="r num">'+c.count+'</td><td class="r num pen"><b>'+c.penalty+'</b></td>';
+    body.appendChild(tr);
+  });
+  if(!shown){ const tr=document.createElement('tr'); tr.className='zero'; tr.innerHTML='<td>No errors recorded</td><td class="r num">0</td><td class="r num">0</td>'; body.appendChild(tr); }
+  $('sheet-count').textContent=issues.length;
+  $('sheet-pen').textContent=sc.apt;
+
+  // term scan
+  const scan=d.term_scan||[];
+  const sFails=scan.filter(t=>t && t.fits===false);
+  const sFits=scan.filter(t=>t && t.fits!==false);
+  const sl=$('scan-list'); sl.innerHTML='';
+  if(scan.length){
+    sFails.forEach(t=>{
+      const el=document.createElement('div'); el.className='scanrow';
+      el.innerHTML='<span class="sterm">'+escapeHtml(t.term)+'</span><span class="sarr">&rarr;</span><span class="slit">'+escapeHtml(t.literal_meaning)+'</span><span class="smark sno">wrong meaning</span>';
+      sl.appendChild(el);
+    });
+    if(sFits.length){
+      const note=document.createElement('div'); note.className='scan-note';
+      note.textContent=sFits.length+(sFits.length>1?' other terms checked, all fit the context.':' other term checked, it fits the context.');
+      sl.appendChild(note);
+    }
+    $('scan-card').style.display='block';
+  } else $('scan-card').style.display='none';
+
+  // issue groups
+  renderGroups($('mustfix'), mustGroups, 'Nothing blocking. No critical or major errors found.');
+  renderGroups($('polish'), polishGroups, 'No minor issues worth polishing.');
+  $('mf-c').textContent=mustFix; $('cp-c').textContent=polish;
+
+  $('results').style.display='block';
+}
+
+function dimName(k){ return (MQM_DIMS.find(d=>d[0]===k)||[null,k])[1]; }
+function issueHead(i){
+  return '<div class="itop"><span class="sev sev-'+i.severity+'">'+i.severity+'</span><span class="dimtag">'+escapeHtml(dimName(i.dimension))+'</span>'+(i.confidence?'<span class="conf">'+escapeHtml(i.confidence)+' confidence</span>':'')+'</div>';
+}
+function renderGroups(container, groups, emptyMsg){
+  container.innerHTML='';
+  if(!groups.length){ container.innerHTML='<div class="empty">'+emptyMsg+'</div>'; return; }
+  groups.forEach(g=>{
+    const i=g.primary;
+    const el=document.createElement('div'); el.className='issue'+(i.severity==='critical'?' crit':'');
+    let html=issueHead(i)+
+      '<pre class="orig">'+escapeHtml(i.original||'')+'</pre>'+
+      '<p class="prob">'+escapeHtml(i.problem||'')+'</p>'+
+      '<p class="fix"><b>Fix</b><span>'+escapeHtml(i.suggestion||'')+'</span></p>';
+    if(g.rest.length){
+      html+='<div class="nested"><div class="nested-h">Also on this text</div>';
+      g.rest.forEach(r=>{
+        html+='<div class="subissue">'+issueHead(r)+'<p class="prob">'+escapeHtml(r.problem||'')+'</p><p class="fix"><b>Fix</b><span>'+escapeHtml(r.suggestion||'')+'</span></p></div>';
+      });
+      html+='</div>';
+    }
+    el.innerHTML=html;
+    container.appendChild(el);
+  });
+}
+
+$('run').onclick=async()=>{
+  $('run').disabled=true; startLoading();
+  try{
+    let raw = mode==='file' ? uploadedText : $('content').value;
+    raw=(raw||'').trim();
+    if(raw.length<10) throw {h:'Nothing to review',b: mode==='file'?'Upload a saved .html file first.':'Paste some page content first.'};
+    const ewc=wordCount(raw);
+    const content=cleanForModel(raw);
+    const data=await callClaude(content);
+    stopLoading();
+    render(data, ewc);
+    $('results').scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(err){
+    stopLoading();
+    $('error-h').textContent=err.h||'Something went wrong';
+    $('error-b').textContent=err.b||'Please try again.';
+    $('error').style.display='block';
+  }finally{ $('run').disabled=false; }
+};
+</script>
+</body>
+</html>
