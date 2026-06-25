@@ -3,7 +3,9 @@
 
 **Scored Website Localization QA**
 
-LocFit reviews localized website pages and tells content teams what to fix first. It acts as a first-pass triage tool with a human in the loop, catching genuine market-breaking errors (like mistranslations, broken tone, and wrong locale formatting) without punishing "good enough" content for not being perfect.
+LocFit is a rough-around-the-edges, first-pass triage tool that uses Claude to run HTML uploads against the MQM industry standard and flags the "must-fix" errors versus "minor polish".
+
+It’s not perfect – it only handles separate pages for now and sometimes trips over niche languages – but it does some of the heavy lifting and provides a smarter starting point than checking every string by hand. No matter the current shaky facade, the concept is sound with plenty of opportunities to build on.
 
 ## How It Works
 1. **Input:** Upload saved HTML or paste page code directly. 
