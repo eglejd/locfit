@@ -247,7 +247,7 @@
         <div class="stat"><b id="r-ewc">—</b>words evaluated</div>
       </div>
 
-      <div class="sheet-h">MQM-Core scorecard — penalty by dimension</div>
+      <div class="sheet-h">Market Fitness Breakdown — Risk Dimensions</div>
       <table class="sheet">
         <thead><tr><th>Error dimension</th><th class="r">Errors</th><th class="r">Penalty points</th></tr></thead>
         <tbody id="sheet-body"></tbody>
@@ -549,10 +549,17 @@ function renderGroups(container, groups, emptyMsg){
   groups.forEach(g=>{
     const i=g.primary;
     const el=document.createElement('div'); el.className='issue'+(i.severity==='critical'?' crit':'');
+    
+    // Here is the updated HTML block with the mock "Approve" button
     let html=issueHead(i)+
       '<pre class="orig">'+escapeHtml(i.original||'')+'</pre>'+
       '<p class="prob">'+escapeHtml(i.problem||'')+'</p>'+
-      '<p class="fix"><b>Fix</b><span>'+escapeHtml(i.suggestion||'')+'</span></p>';
+      '<p class="fix"><b>Fix</b><span>'+escapeHtml(i.suggestion||'')+'</span></p>'+
+      '<div style="margin-top:12px; display:flex; gap:10px; align-items:center;">'+
+        '<button class="run" style="padding:6px 12px; font-size:12px; background:var(--good);" onclick="this.textContent=\'✓ Approved & Synced to TMX\'; this.style.background=\'#15803D\'; this.disabled=true;">Approve Change</button>'+
+        '<span style="font-size:11px; color:var(--faint); font-family:var(--mono);">ID: tmx_seg_'+Math.floor(Math.random()*10000)+'</span>'+
+      '</div>';
+      
     if(g.rest.length){
       html+='<div class="nested"><div class="nested-h">Also on this text</div>';
       g.rest.forEach(r=>{
