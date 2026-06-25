@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LocFit — website localization QA scored with MQM</title>
+<title>LocFit — scored website localization QA </title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
@@ -188,7 +188,7 @@
       <div class="glyph" aria-hidden="true"></div>
       <div>
         <div class="brandname">Loc<span>Fit</span></div>
-        <div class="brandsub">Website localization QA, scored with MQM</div>
+        <div class="brandsub">Scored Website Localization QA</div>
       </div>
     </div>
     <div class="ctx">Add the key pages of a site, get one ranked view of where its localization is breaking.</div>
@@ -266,7 +266,7 @@
   </div>
 
   <footer>
-    Built for the GenAI in Localization Hackathon · reviews powered by Claude · first-pass triage, confirm with a human reviewer<br>
+    Built for the GenAI in Localization Hackathon · Reviews powered by Claude · First-pass triage, confirm with a human reviewer<br>
     Scoring based on MQM 2.0 (<a href="https://themqm.org">themqm.org</a>, CC BY 4.0) · <a href="https://egle.works">egle.works</a>
   </footer>
 </div>
@@ -301,7 +301,7 @@ const SPM = {minor:1, major:5, critical:25};
 const SEV_RANK={critical:3,major:2,minor:1};
 
 let uid=0;
-let items=[ {id:++uid, name:'Sinsay — product page', lang:'Lithuanian (lt-LT)', content:SAMPLE, result:null, ewc:0, error:null} ];
+let items=[ {id:++uid, name:'Sinsay — product page', lang:'Lithuanian', content:SAMPLE, result:null, ewc:0, error:null} ];
 let selectedId=null;
 
 function escapeHtml(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
