@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LocFit — localization QA scored with MQM</title>
+<title>LocFit — scored website localization QA </title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
@@ -174,13 +174,13 @@
       <div class="glyph" aria-hidden="true"></div>
       <div>
         <div class="brandname">Loc<span>Fit</span></div>
-        <div class="brandsub">Localization QA scored with MQM</div>
+        <div class="brandsub">Scored Website Localization QA</div>
       </div>
     </div>
-    <div class="ctx">Paste a localized page or upload a saved .html file. Get an MQM scorecard, not a perfectionist's wishlist.</div>
+    <div class="ctx">Paste a localized page or upload a saved .html file, get an MQM scorecard.</div>
   </header>
 
-  <h1 class="thesis">Most localization isn't meant to be perfect. It's meant to be <b>good enough for the job</b>. LocFit grades web content with the MQM framework and separates what's broken from what's just polish.</h1>
+  <h1 class="thesis">Most localization isn't meant to be perfect. It's meant to be <b>good enough for the job</b>. LocFit grades web content and separates what's broken from what's just polish.</h1>
 
   <div class="card pad">
     <div class="seg" role="group" aria-label="Input mode">
@@ -269,8 +269,8 @@
   </div>
 
   <footer>
-    Built for the GenAI in Localization Hackathon · reviews powered by Claude · first-pass triage, confirm with a human reviewer<br>
-    Scoring based on MQM 2.0 (<a href="https://themqm.org">themqm.org</a>, CC BY 4.0) · <a href="https://egle.works">egle.works</a>
+    Built for the GenAI in Localization Hackathon · Reviews powered by Claude · First-pass triage, confirm with a human reviewer<br>
+    <a href="https://egle.works">egle.works</a>
   </footer>
 </div>
 
@@ -376,6 +376,14 @@ PRECISION vs RECALL (this is what makes the tool trusted):
 - Be THOROUGH on accuracy and critical errors — never miss a word that means the wrong thing.
 - Be CONSERVATIVE on linguistic, terminology and style. If you are not confident a term is genuinely wrong in THIS market, do NOT flag it. Navigation labels, button microcopy and category names conventional in the market are CORRECT even when another grammatical form exists. Prefer a missed nitpick over a false alarm.
 Set each issue's "confidence": high, medium or low.
+
+// Locate this section inside your index.html and append these calibration rules:
+
+- CRITICAL QUALITY CALIBRATION:
+  * Do NOT invent errors. If the text reads naturally and matches the source meaning, count it as a PASS.
+  * Be highly conservative with "Linguistic" and "Style" errors on short UI buttons. If "Add to Cart" or "Search" is conventional in the target market, it is CORRECT—do not flag it as an error just because a different grammatical case could exist.
+  * Only flag an "Accuracy" error if the target text actually misleads the user or states the wrong thing entirely.
+  * For "Severity": Minor = small slip that doesn't hurt understanding. Major = noticeable error in an important place. Critical = broken placeholder, broken UI layout, or misleading legal/commercial information.
 
 Return ONLY valid JSON. No markdown, no fences, no commentary. Exact shape:
 {
