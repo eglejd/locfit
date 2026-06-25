@@ -1,5 +1,7 @@
 # LocFit 🌍
-[www.locfit.egle.works](http://locfit.egle.works/)
+[Visit the Live Site](http://locfit.egle.works/)
+
+[Watch the Demo Video](https://drive.google.com/file/d/1xjjQm7zxL7qDWTgtIl34hg16ryaUOssA/view?usp=sharing)
 
 **Scored Website Localization QA**
 
