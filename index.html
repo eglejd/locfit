@@ -164,6 +164,9 @@
   .approve{appearance:none;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);font:inherit;font-size:12px;font-weight:600;padding:6px 13px;border-radius:8px;cursor:pointer;transition:.15s}
   .approve:hover{border-color:var(--good);color:var(--good)}
   .approve:disabled{background:var(--good-bg);color:var(--good);border-color:var(--good-bg);cursor:default}
+  .actrow{display:flex;gap:8px}
+  .dismiss{appearance:none;border:1px solid var(--line-strong);background:var(--surface);color:var(--muted);font:inherit;font-size:12px;font-weight:600;padding:6px 13px;border-radius:8px;cursor:pointer;transition:.15s}
+  .dismiss:hover{border-color:#f0bcbc;color:var(--bad)}
   .empty{font-size:13.5px;color:var(--muted);padding:12px 14px;border:1px dashed var(--line-strong);border-radius:11px}
 
   footer{margin-top:40px;text-align:center;font-size:12px;color:var(--faint);line-height:1.6}
@@ -201,7 +204,7 @@
       <button class="ghost" id="add-file">+ Upload .html as page</button>
       <input type="file" id="file" accept=".html,.htm,.txt" style="display:none">
     </div>
-    <div class="langnote">Each page is reviewed separately with the same MQM engine; the overview ranks the site’s pages worst-first. To save a live page as a file: open it, Ctrl/Cmd+S → "Webpage, HTML only".</div>
+    <div class="langnote">Set the target language for each page in plain words: "Lithuanian", or a locale code like "lt-LT", both work. Each page is reviewed separately with the same MQM engine; the overview ranks the site’s pages worst-first. To save a live page as a file: open it, Ctrl/Cmd+S → "Webpage, HTML only".</div>
 
     <details class="keyrow">
       <summary>Running this outside Claude? Add an API key</summary>
@@ -316,7 +319,7 @@ function renderItems(){
     el.innerHTML=
       '<div class="item-top"><input class="item-name" value="'+escapeHtml(it.name)+'" placeholder="Page name (e.g. Homepage, Product page)">'+
       (items.length>1?'<button class="rm" title="Remove">✕</button>':'')+'</div>'+
-      '<div class="item-row"><input class="item-lang" value="'+escapeHtml(it.lang)+'" placeholder="Target language / market"></div>'+
+      '<div class="item-row"><input class="item-lang" value="'+escapeHtml(it.lang)+'" placeholder="e.g. Lithuanian (lt-LT)"></div>'+
       '<textarea class="item-content" spellcheck="false" placeholder="Paste the localized page content or HTML">'+escapeHtml(it.content)+'</textarea>';
     el.querySelector('.item-name').oninput=e=>{ it.name=e.target.value; };
     el.querySelector('.item-lang').oninput=e=>{ it.lang=e.target.value; };
@@ -335,12 +338,12 @@ $('file').onchange=()=>{ const f=$('file').files[0]; if(!f) return; const r=new 
 /* ---------- engine ---------- */
 const SYSTEM = `You are a senior localization QA reviewer. You annotate localized web content using MQM 2.0 (Multidimensional Quality Metrics), the localization industry standard. You do NOT output a score — you annotate errors, and software computes the score from your annotations. Judge for FITNESS FOR PURPOSE, never against an ideal of perfection.
 
-STEP 1 — TERM SCAN (do this FIRST). Look at the key customer-facing terms: product names, headings, CTAs/buttons, category and navigation labels. For each meaningful term, back-translate it: state what the word LITERALLY means in the target language and whether that meaning fits the item or context. This is how you catch MISTRANSLATIONS where a word is valid in the target language but denotes the WRONG THING (e.g. a garment whose name actually means an insect or animal). A fluent, correctly spelled sentence can still contain a word that means the wrong thing. Never skip this.
+STEP 1 — TERM SCAN (do this FIRST). Look at the key customer-facing terms: product names, headings, CTAs/buttons, category and navigation labels. For each meaningful term, back-translate it: state what the word LITERALLY means in the target language and whether that meaning fits the item or context. This is how you catch MISTRANSLATIONS where a word is valid in the target language but denotes the WRONG THING (e.g. a garment whose name actually means an insect or animal). A fluent, correctly spelled sentence can still contain a word that means the wrong thing. Mark "fits": false ONLY when the term genuinely denotes the WRONG THING for this item (a true meaning error, like a blouse named after an insect). A conventional UI/navigation label, a standard or deliberate abbreviation, a correct word in an unexpected grammatical case, and a vague-but-not-false claim all FIT (set "fits": true) and must NOT be marked wrong here. If a term genuinely does NOT fit (a real meaning error), you MUST ALSO list it as an accuracy issue in "issues" so it is scored and shown. Never skip this.
 
 STEP 2 — ANNOTATE each real error under ONE MQM-Core dimension:
 - accuracy: meaning does not match — mistranslation (including a word valid in the target language but meaning the wrong thing), untranslated source word, omission, addition, MT hallucination.
 - terminology: a term that is not the correct/normative equivalent or is inconsistent with domain usage.
-- linguistic: well-formedness — grammar, agreement, case, spelling, punctuation. Meaning right, form off. Sweep EVERY short UI label, button and heading for case and agreement errors; do not stop after the first one or two.
+- linguistic: well-formedness — grammar, agreement, case, spelling, punctuation. Meaning right, form off. Sweep EVERY short UI label, button and heading for case and agreement errors; do not stop after the first one or two. A missing diacritic or character-encoding difference (e.g. "e" where Lithuanian needs "ė") is a normal minor error ONLY in visible on-page text. In meta tags, attributes, keyword lists, alt text or URL slugs, do NOT flag diacritic / encoding differences — they are usually stripped during extraction, not real on-page errors.
 - style: grammatically fine but wrong register, tone, or off a style guide; flat literal MT tone.
 - locale: violates locale formatting/content rules — wrong number, date, currency, measurement or address format.
 - audience: content invalid or inappropriate for the target locale or audience.
@@ -355,7 +358,15 @@ SEVERITY (MQM definitions, apply literally):
 - major: seriously affects understandability, reliability or usability, or appears in a highly visible/important part.
 - minor: noticeable but does NOT seriously impede understanding. Most isolated grammar/agreement/case/declension slips and light awkwardness are MINOR. A case or agreement error that does not change meaning stays MINOR even in a product title, heading or button; visibility alone does not raise it to major.
 
-PRECISION vs RECALL: be THOROUGH on accuracy and critical errors; be CONSERVATIVE on linguistic, terminology and style. If you are not confident a term is genuinely wrong in THIS market, do NOT flag it. Conventional market terms are CORRECT even when another grammatical form exists. Prefer a missed nitpick over a false alarm. Set each issue's "confidence": high, medium or low.
+PRECISION OVER RECALL — over-flagging is the most common and most damaging failure. Be thorough only on accuracy/meaning and clearly broken content. For linguistic conventions, terminology and style, DEFAULT TO NOT FLAGGING unless you are certain the item is wrong AND it affects meaning or clearly breaks standard usage in THIS market.
+
+The following are NOT errors. Do NOT flag them at all:
+- Conventional UI / navigation labels and category names standard in the target market, even if a different grammatical case or form is theoretically possible.
+- Standard or deliberate abbreviations, including ones that intentionally sidestep plural / number-ending agreement (an abbreviation in a points, loyalty or units context is a normal choice, not a truncation error).
+- Button or label wording acceptable in the market even if another form also exists (e.g. infinitive vs imperative).
+- Vague claims that are not outright false (handled only as a minor "verify" item, never as a grammar or terminology error).
+- Capitalisation or styling that is merely inconsistent rather than wrong.
+If you would flag something only because "a different form is also possible" or "a nicer alternative exists", do NOT flag it. A false alarm costs more trust than a missed nitpick. When unsure, leave it out. Grammatical case or gender-agreement errors that do not change meaning are MINOR, never major.
 
 Return ONLY valid JSON. No markdown, no fences, no commentary. Exact shape:
 {
@@ -372,16 +383,23 @@ function parseJSON(text){
   const a=t.indexOf('{'), b=t.lastIndexOf('}'); if(a>=0&&b>a) t=t.slice(a,b+1);
   return JSON.parse(t);
 }
+const PROXY_URL=''; /* ← paste your Cloudflare Worker URL here for key-free public hosting. Leave '' to use a pasted key or run inside Claude. */
+
 async function callClaude(content, lang){
-  const key=$('apikey').value.trim();
-  const headers={'content-type':'application/json'};
-  if(key){ headers['x-api-key']=key; headers['anthropic-version']='2023-06-01'; headers['anthropic-dangerous-direct-browser-access']='true'; }
   const userMsg='TARGET LANGUAGE / MARKET: '+(lang||'unspecified')+'\n\nReview the localized web content below. Run the term scan, then annotate the most important MQM errors.\n\n--- CONTENT START ---\n'+content+'\n--- CONTENT END ---';
-  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers,
-    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:3000,system:SYSTEM,messages:[{role:'user',content:userMsg}]})});
+  const body={model:'claude-sonnet-4-6',max_tokens:3000,system:SYSTEM,messages:[{role:'user',content:userMsg}]};
+  let res;
+  if(PROXY_URL){
+    res=await fetch(PROXY_URL,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+  } else {
+    const key=$('apikey').value.trim();
+    const headers={'content-type':'application/json'};
+    if(key){ headers['x-api-key']=key; headers['anthropic-version']='2023-06-01'; headers['anthropic-dangerous-direct-browser-access']='true'; }
+    res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers,body:JSON.stringify(body)});
+  }
   if(!res.ok){
     const txt=await res.text().catch(()=> '');
-    if(res.status===401||res.status===403) throw new Error('API key needed — open "Running this outside Claude?" and paste an Anthropic key.');
+    if(!PROXY_URL && (res.status===401||res.status===403)) throw new Error('API key needed — open "Running this outside Claude?" and paste an Anthropic key, or set up the proxy.');
     throw new Error('Model call failed ('+res.status+'). '+(txt||'').slice(0,140));
   }
   const data=await res.json();
@@ -477,7 +495,7 @@ function renderOverview(list){
 /* ---------- detail ---------- */
 function dimName(k){ return (MQM_DIMS.find(d=>d[0]===k)||[null,k])[1]; }
 function issueHead(i){
-  return '<div class="itop"><span class="sev sev-'+i.severity+'">'+i.severity+'</span><span class="dimtag">'+escapeHtml(dimName(i.dimension))+'</span>'+(i.confidence?'<span class="conf">'+escapeHtml(i.confidence)+' confidence</span>':'')+'</div>';
+  return '<div class="itop"><span class="sev sev-'+i.severity+'">'+i.severity+'</span><span class="dimtag">'+escapeHtml(dimName(i.dimension))+'</span></div>';
 }
 function renderGroups(container, groups, emptyMsg, withApprove){
   container.innerHTML='';
@@ -486,8 +504,9 @@ function renderGroups(container, groups, emptyMsg, withApprove){
     const i=g.primary; const el=document.createElement('div'); el.className='issue'+(i.severity==='critical'?' crit':'');
     let html=issueHead(i)+'<pre class="orig">'+escapeHtml(i.original||'')+'</pre>'+
       '<p class="prob">'+escapeHtml(i.problem||'')+'</p>'+
-      '<p class="fix"><b>Fix</b><span>'+escapeHtml(i.suggestion||'')+'</span></p>';
-    if(withApprove) html+='<button class="approve" onclick="this.disabled=true;this.textContent=\'✓ Approved (demo only)\'">Approve fix (demo)</button>';
+      '<p class="fix"><b>Fix</b><span>'+escapeHtml(i.suggestion||'')+'</span></p>'+
+      '<div class="actrow"><button class="approve" onclick="this.disabled=true;this.textContent=\'✓ Approved (demo only)\'">Approve fix (demo)</button>'+
+      '<button class="dismiss" onclick="this.closest(\'.issue\').remove()">Dismiss</button></div>';
     if(g.rest.length){
       html+='<div class="nested"><div class="nested-h">Also on this text</div>';
       g.rest.forEach(r=>{ html+='<div class="subissue">'+issueHead(r)+'<p class="prob">'+escapeHtml(r.problem||'')+'</p><p class="fix"><b>Fix</b><span>'+escapeHtml(r.suggestion||'')+'</span></p></div>'; });
@@ -535,14 +554,7 @@ function renderDetail(it){
   if(!shown){ const tr=document.createElement('tr'); tr.className='zero'; tr.innerHTML='<td>No errors recorded</td><td class="r num">0</td><td class="r num">0</td>'; body.appendChild(tr); }
   $('sheet-count').textContent=a.issues.length; $('sheet-pen').textContent=sc.apt;
 
-  const scan=d.term_scan||[]; const sF=scan.filter(t=>t&&t.fits===false); const sOk=scan.filter(t=>t&&t.fits!==false);
-  const sl=$('scan-list'); sl.innerHTML='';
-  if(scan.length){
-    sF.forEach(t=>{ const el=document.createElement('div'); el.className='scanrow';
-      el.innerHTML='<span class="sterm">'+escapeHtml(t.term)+'</span><span class="sarr">&rarr;</span><span class="slit">'+escapeHtml(t.literal_meaning)+'</span><span class="smark sno">wrong meaning</span>'; sl.appendChild(el); });
-    if(sOk.length){ const n=document.createElement('div'); n.className='scan-note'; n.textContent=sOk.length+(sOk.length>1?' other terms checked, all fit the context.':' other term checked, it fits the context.'); sl.appendChild(n); }
-    $('scan-block').style.display='block';
-  } else $('scan-block').style.display='none';
+  $('scan-block').style.display='none';
 
   renderGroups($('mustfix'), a.mustGroups, 'Nothing blocking. No critical or major errors found.', true);
   renderGroups($('polish'), a.polishGroups, 'No minor issues worth polishing.', false);
